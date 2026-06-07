@@ -1,0 +1,8 @@
+# Foundry build output
+out/
+cache/
+broadcast/
+
+# Dependencies are managed via `forge install` (git submodules / reinstall),
+# not committed directly.
+lib/
