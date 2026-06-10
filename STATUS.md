@@ -1,6 +1,6 @@
 # Zuitzerland — Project Status
 
-_Last updated: 2026-06-07_
+_Last updated: 2026-06-10_
 
 Zuitzerland is a privacy-preserving, gated anonymous forum with on-chain governance,
 built on **ERC-7812** (a singleton ZK identity registry using a Sparse Merkle Tree).
@@ -29,14 +29,29 @@ Public-input contract (LOCKED, 4 inputs): **`[root, nullifier, sessionBinding, r
 ## ✅ Done
 
 ### Circuit 1 — `membership_proof/` (Noir)
-- [x] Membership proof circuit (`src/main.nr`): commitment, SMT inclusion (depth 20,
-      Poseidon), nullifier derivation, session-binding pass-through.
-- [x] 3 passing tests (happy path, mixed-index path, bad-root rejection).
-- [x] Compiles; UltraHonk Solidity verifier exported via BB (`target/Verifier.sol`).
+- [x] Membership proof circuit (`src/main.nr`): commitment, ERC-7812 isolated-key SMT
+      inclusion (depth 20, Poseidon), nullifier derivation, session-binding pass-through.
+- [x] **4-input public interface** `[root, nullifier, session_binding, registrar]`
+      (locked, matches the contracts). Fixed an earlier bug that emitted `session_binding`
+      twice.
+- [x] **ERC-7812 isolated keys**: `leaf_key = Poseidon2(registrar, Poseidon2(secret,0))`,
+      leaf = `Poseidon3(key, value, 1)`, variable-depth reconstruction matching
+      dl-solarity `SparseMerkleTree._processProof`.
+- [x] Tests: happy path, other-witness, bad-root (should_fail), wrong-registrar
+      (should_fail), Poseidon cross-check print.
+- [x] **Check 1 PASSED** — Noir `bn254::hash_2` == iden3/circomlib Poseidon (verified via
+      test vector `0x115cc0…`).
+- [x] **Check 2 PASSED** — circuit `compute_root` reproduces the REAL dl-solarity SMT root
+      on a multi-leaf fixture (`nargo execute` passed). Circuit ↔ on-chain SMT agree.
 - [x] Docs: `HANDOFF.md`, `CIRCUIT1_ISOLATED_KEY_NOTE.md`.
-- [!] **Pending change** — does not yet implement ERC-7812 isolated keys or expose
-      `registrar` as the 4th public input (see "To do" #1). Until then it produces a
-      3-input proof that will NOT verify against the real registry.
+- [x] **Verifier re-exported** — `target/Verifier.sol` regenerated from the updated circuit
+      (`nargo compile` + `bb write_vk` + `bb write_solidity_verifier`).
+
+### Fixture tooling — `contracts/` (validates circuit ↔ real SMT)
+- [x] `SmtFixtureWrapper` drives dl-solarity `SparseMerkleTree` with Poseidon hashers.
+- [x] `GenerateSmtFixture` script emits a real `(root, siblings, key, …)` fixture as a
+      `Prover.toml` block + JSON; used to pass Check 2.
+- [x] `test/fixtures/README.md` — install + run + validate steps.
 
 ### Smart contracts — `contracts/` (Foundry, all tests green)
 - [x] `ZuitzerlandVerifier` — 4 checks in order (root recency → not banned → not used →
@@ -68,32 +83,27 @@ Public-input contract (LOCKED, 4 inputs): **`[root, nullifier, sessionBinding, r
 
 ## 🔲 To do
 
-### 1. Circuit 1 — isolated-key change (CRITICAL, blocks real E2E)
-Contracts expect 4 public inputs; the circuit still produces 3 and uses
-`leaf_key = Poseidon(secret)`. Update the circuit to:
-- derive `leaf_key = getIsolatedKey(registrar, Poseidon(secret))`
-- expose `registrar` as the 4th public input
-- update tests + re-export the verifier
-See `membership_proof/CIRCUIT1_ISOLATED_KEY_NOTE.md`.
+### 1. Confirm real leaf `value` semantics
+The fixture uses a placeholder `value`. Confirm what each provider's registrar actually
+stores as the leaf value; the client must supply the real one when proving.
 
-### 2. Confirm the real `getIsolatedKey` scheme
-Read the exact hashing (hash fn, address encoding, argument order) off the deployed
-registry / Rarimo's implementation and match it bit-for-bit in the circuit.
-
-### 3. Gather real addresses
+### 2. Gather real addresses
 - [x] Shared registry: `0x781246D2256dc0C1d8357c9dDc1eEe926a9c7812`
 - [ ] Rarimo registrar address
 - [ ] zkPassport registrar address
 - [ ] Deployed Circuit 1 `Verifier.sol` address (per network)
 
-### 4. Real end-to-end test
-Generate a real proof from the updated circuit and run it through the deployed stack —
-ideally a forked-network test against the real ERC-7812 registry — to prove circuit and
-contracts agree on encoding.
+### 3. Real end-to-end test (on a fork)
+Deploy the stack against the real ERC-7812 registry, generate a proof for a leaf that
+genuinely exists in the tree, and verify on-chain. Circuit↔SMT and contract logic are each
+validated separately; this joins them with the real registry + real registrar value.
 
-### 5. Frontend (separate workstream)
+### 4. Frontend (separate workstream)
 Client that builds `ProofSubmission` and calls `verify` / `verifyMultiProof`, computes
 `sessionBinding = hash(wallet, nonce)`, fetches Merkle paths, generates proofs.
+
+### 5. Commit the circuit + fixture work
+The latest Circuit 1 changes and the fixture generator are not committed yet.
 
 ---
 
@@ -101,10 +111,12 @@ Client that builds `ProofSubmission` and calls `verify` / `verifyMultiProof`, co
 - Per-action nullifier (`actionId`) → enables repeated participation across many actions.
 - Vote-based governance (quorum of members triggers bans via ZK proof).
 - Recursive proof aggregation.
+- zkTLS as a third provider (see `docs/ZKTLS_PROVIDER_NOTE.md`).
 
 ---
 
 ## Critical path
-**#1 → #2 → #4.** Updating Circuit 1 for isolated keys is the single highest-value next
-step: "real proofs verifying on-chain" depends on it, and it is the one place the circuit
-and contracts must move together.
+The hard blocker — proving the circuit and the real on-chain SMT agree — is **CLEARED**
+(Checks 1 & 2 passed). What's left is integration glue: re-export the verifier (#1), get
+real registrar values/addresses (#2, #3), and join everything in a forked end-to-end test
+(#4), plus the frontend (#5).
