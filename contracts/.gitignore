@@ -6,3 +6,6 @@ broadcast/
 # Dependencies are managed via `forge install` (git submodules / reinstall),
 # not committed directly.
 lib/
+
+# Generated SMT fixture
+smt_fixture.json
