@@ -12,6 +12,12 @@ flow** you described.
 
 ---
 
+> **Reading §1–§8 vs §9.** Sections 1–8 describe the **current implementation**: one Noir
+> membership circuit + one shared ERC-7812 registry — i.e. the *first* provider adapter on a
+> more general ladder. The long-term design for adding **new providers and arbitrary
+> conditions without authoring new circuits** lives in **§9**. If you're here for the vision,
+> jump there; if you're wiring the contracts as they stand, read straight through.
+
 ## 1. The actors (who is who)
 
 | Actor | In your E2E flow | In our code |
@@ -285,7 +291,128 @@ graph LR
     D --> E["5. Deploy Governance(verifier)<br/>+ verifier.setGovernance(gov)"]
 ```
 
-## 9. Decisions & deferred items
+## 9. Long-term: condition & provider extensibility
+
+> **The pitch ZuitzPass is really making is "prove *any* requirement."** This section is the
+> honest architecture behind that claim — how we add new providers (Rarimo, zkPassport, …)
+> *and* arbitrary conditions ("is a human", "over 18", "has >$1k on Aave", "holds NFT X")
+> **without authoring a new ZK circuit each time.** It generalizes the single-circuit model
+> in §1–§8; see also [`docs/RARIMO_INTEGRATION_MAPPING.md`](../docs/RARIMO_INTEGRATION_MAPPING.md).
+
+### 9.1 The reframe: the circuit is (almost always) the *provider's* problem
+
+The recurring unit of integration work is an **adapter**, not a circuit. Any membership /
+credential proof decomposes into three layers:
+
+| Layer | Varies per provider/condition? | Who owns it |
+|---|---|---|
+| Proof generation (the circuit) | yes — but **you don't author it** | the provider / a general proving layer |
+| Verifier ABI + public-signal layout | yes | **you — a thin adapter** |
+| Nullifier tracking, bans, governance, access grants | **no** | **you — written once** (this repo) |
+
+Rarimo ships its Query circuit *and* `TD3QueryProofVerifier`; zkPassport ships its Noir
+circuits. You consume a verifier; you don't write the SNARK. **So "new provider" = "new
+adapter," not "new circuit."**
+
+### 9.2 But what about an *arbitrary* condition nobody built a provider for?
+
+Example: *"user has > \$1k supplied on Aave."* No provider, no circuit exists. Classify **any**
+condition on two axes before reaching for cryptography:
+
+1. **Where does the source data live?** public on-chain state / private off-chain (passport,
+   bank, web2) / another chain.
+2. **Do you need privacy?** must the forum identity stay *unlinkable* to the wallet that
+   satisfies the condition?
+
+Walking the Aave example through it:
+
+- **No privacy needed → there is no circuit. You just read it.**
+  ```solidity
+  (uint256 collateralBase,,,,,) = aavePool.getUserAccountData(msg.sender);
+  require(collateralBase >= 1000e8, "need >$1k on Aave");
+  ```
+  A large fraction of "requirements" are actually this. The cost: it links the action to the
+  wallet.
+
+- **Privacy needed (the real ZuitzPass case) → still no bespoke circuit; use a configurable
+  proving layer.** The statement *"some wallet W I control has >\$1k on Aave, without revealing
+  W, + a nullifier"* is a **storage proof**. You **configure a ZK coprocessor** (Axiom, Brevis,
+  Herodotus, Lagrange) with a *query* — not a circuit. For **off-chain** data (a bank balance,
+  not Aave), the equivalent is **zkTLS** (Reclaim, zkPass, Opacity).
+
+### 9.3 The evidence-source ladder (climb only as far as the condition forces)
+
+| Source | Use when | New circuit? |
+|---|---|---|
+| Direct on-chain read | public state, privacy not required | ❌ none |
+| Existing provider verifier (Rarimo / zkPassport) | provider already proves the predicate | ❌ none |
+| **ZK coprocessor** (Axiom / Brevis / Herodotus) | arbitrary **on-chain** fact, *with* privacy | ❌ you write a **query**, not a circuit |
+| **zkTLS / oracle attestation** | arbitrary **off-chain / web2** fact | ❌ config, not a circuit |
+| Bespoke circuit | nothing above fits | ✅ last resort, rare |
+
+### 9.4 The spine: attestation/claim indirection
+
+So ZuitzPass never has to care *how* a condition was proven, **don't prove the condition inside
+the membership flow.** Let any evidence source establish the fact and write a **claim bound to a
+nullifier**; the forum only ever requires claims.
+
+```mermaid
+graph LR
+    subgraph SOURCES["Evidence sources (pluggable)"]
+        R["on-chain read"]
+        P["Rarimo / zkPassport verifier"]
+        C["ZK coprocessor (Aave>$1k)"]
+        T["zkTLS / oracle"]
+    end
+    SOURCES --> A["Attestation / claim<br/>type + value, bound to nullifier N"]
+    A --> Z["ZuitzPass gate<br/>require claim of type X for N<br/>(condition-AGNOSTIC, never changes)"]
+    Z --> F["grant forum / governance access"]
+```
+
+Adding a new condition = register a new **claim type** + the source that issues it. The core
+gate, governance, and nullifier set **do not change**. This is what makes "prove any
+requirement" credible rather than marketing.
+
+### 9.5 The normalized seam (what every adapter reduces to)
+
+Every source — provider verifier, coprocessor, zkTLS, or plain read — reduces to one shape:
+
+```solidity
+struct VerifiedIdentity {
+    bytes32 nullifier;       // uniqueness handle, scoped to ZuitzPass (Sybil resistance)
+    uint256 claims;          // bitmask: isHuman | over18 | notExpired | aaveGt1k | ...
+    bytes32 freshnessAnchor; // root / attestation id
+    uint64  observedAt;      // for the validity window
+}
+
+interface IIdentityAdapter {
+    function verifyAndNormalize(bytes calldata providerPayload)
+        external returns (VerifiedIdentity memory); // verify however it must, or revert
+}
+```
+
+The core contract calls `verifyAndNormalize`, then runs the provider-agnostic logic from §3
+(nullifier not used / not banned → grant access). This is the evolution of today's
+`IProviderAdapter`: normalize the **verified facts**, not just the policy (registrar + window).
+
+### 9.6 The honest residual
+
+The genuinely hard combination is **anonymity + arbitrary predicate + Sybil-resistance
+(nullifier) all at once.** Each alone is easy; together they need glue — binding a
+coprocessor/zkTLS proof to a nullifier so one wallet can't farm memberships, without revealing
+the wallet. That glue is sometimes a small circuit, but it is written **once per *mechanism***
+(e.g. one "storage-proof + nullifier" gadget) and **reused across every on-chain condition** —
+Aave, Uniswap, NFT holdings — *not* once per condition. And the pragmatic escape hatch: when a
+gate doesn't truly need unlinkability, it collapses to the one-line on-chain read in §9.2.
+
+**Net long-term claim:** you will write circuits *almost never* — not because providers always
+ship them, but because the ecosystem is converging on **configurable proving layers**
+(coprocessors, zkTLS) that turn "new condition" into "new query + new claim type." ZuitzPass's
+job is the **claim/attestation seam**, not cryptography.
+
+---
+
+## 10. Decisions & deferred items
 
 **Resolved**
 1. **Inactivity / returning members** → handled by the **per-provider root-validity
