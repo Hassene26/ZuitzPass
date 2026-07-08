@@ -159,8 +159,8 @@ no circuits.
   `redeemNullifier`. This is what binds a verified human to a hidden identity **without publicly
   linking the provider nullifier to `idc`** (strong privacy). One generic Circuit B serves every
   provider — `claimType` is a public input.
-- **Circuit 1 — membership** (`membership_proof/`, archived). The original single-leaf precursor that
-  Circuits A and B generalize. Kept as reference; not in the shipping path.
+Both circuits share one SMT-membership gadget (`compute_root`, matched to the real dl-solarity
+tree), generalized from an original single-leaf membership circuit that has since been removed.
 
 **Why the anonymity set matters:** connecting a provider reveals its nullifier publicly. To avoid
 linking it to `idc`, issuance is split — Part A (public) drops a blinded credential into
@@ -254,13 +254,12 @@ same tree — still config, and it composes (`redeemNullifier` differs per type)
 | `contracts/src/` | Phase-1 layer: `ClaimsRegistry`, `StatementRegistry`, `WorldIDGate`, `ZuitzPassExecutor` (Rarimo), `issuers/`, `demo/SubsidyPool` |
 | `contracts/src/phase3/` | Phase-3 unlinkable: `RootedSMTRegistry`, `ClaimsSMTRegistry`, `VerifiedHumansTree`, `RedeemIssuer`, `EligibilityGate`, verifier interfaces |
 | `contracts/src/rarimo/` | Vendored Rarimo SDK (do not edit) |
-| `contracts/src/archive/`, `test/archive/` | Archived Path B (ERC-7812 gate) — reference only |
 | `contracts/script/` | Deploy + fixture-generator scripts (`DeployWorldIDStack`, `DeployPhase3`, `DeployPhase3Issuance`, `Generate*Fixture`, `Seed*`, `Register*`) |
-| `contracts/test/` | Foundry unit + fork tests (118 unit tests green) |
-| `contracts/frontend/`, `frontend-idkit/` | Phase-1 statements demo UI; World ID v4 (IDKit) proof-capture app |
+| `contracts/test/` | Foundry unit + fork tests (104 unit tests green) |
+| `contracts/frontend-idkit/` | World ID v4 (IDKit) proof-capture app |
+| `demo-app/` | Full-stack unlinkable demo (backend proving + MetaMask frontend) |
 | `eligibility_proof/` | Circuit A (Noir) |
 | `issuance_proof/` | Circuit B (Noir) |
-| `membership_proof/` | Circuit 1 (archived, Noir) |
 | `contracts/ARCHITECTURE_UPDATED.md`, `PHASE3_UNLINKABLE_DESIGN.md`, `STATUS.md` | Canonical design / unlinkable spec / status |
 
 ---

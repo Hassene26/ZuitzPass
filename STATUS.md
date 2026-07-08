@@ -151,7 +151,7 @@ untouched (dormant until Phase 3).
 | `contracts/src/demo/SubsidyPool.sol` | **Demo consumer (Phase 1)** — example app gating a payout on `check`/`consume` |
 | `contracts/src/ZuitzerlandGovernance.sol` (`INullifierBanControl`) | **Product** — drives both gates **and** the ClaimsRegistry |
 | `contracts/script/DeployRarimo.s.sol`, `DeployWorldID.s.sol`, `DeployStatements.s.sol`, `test/*` | **Product** |
-| `contracts/src/archive/**`, `test/archive/**`, `script/archive/Deploy.s.sol` (`ZuitzerlandVerifier`, adapters, `NoirVerifierWrapper`) | **Archive (Path B)** — correct, unused; revisit only if ERC-7812 populates |
-| `membership_proof/`, SMT fixture tooling | **Dormant (Phase 3)** — claims-SMT proof + per-app nullifier; revisit for unlinkability |
+| ~~Path B (`ZuitzerlandVerifier`, adapters, `NoirVerifierWrapper`) + `membership_proof/`~~ | **Removed** in the cleanup — Path B superseded, and the membership circuit generalized into `eligibility_proof/` + `issuance_proof/` |
+| SMT fixture tooling (`test/fixtures/`, `Generate*Fixture`) | **Product (Phase 3)** — real dl-solarity fixtures for the circuits |
 | `docs/E2E_FLOW_RARIMO.md`, `docs/RARIMO_PATH.md`, `docs/RARIMO_INTEGRATION_MAPPING.md` | Current |
 | `contracts/ARCHITECTURE.md` §1–8 | Describes the **archived** Path B — read §9 + Rarimo docs for the product |

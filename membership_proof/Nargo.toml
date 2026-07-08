@@ -1,7 +1,0 @@
-[package]
-name = "membership_proof"
-type = "bin"
-authors = ["Zuitzerland"]
-
-[dependencies]
-poseidon = { tag = "v0.3.0", git = "https://github.com/noir-lang/poseidon" }

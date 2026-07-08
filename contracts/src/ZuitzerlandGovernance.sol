@@ -9,10 +9,9 @@ import {INullifierBanControl} from "./interfaces/INullifierBanControl.sol";
 ///         which flips the flag in the gate. Banning a nullifier prevents the
 ///         corresponding member from gaining access on future proof submissions.
 ///
-/// @dev The gate must point its `governance` to this contract
-///      (gate.setGovernance(address(this))). Works with either the generic
-///      `ZuitzerlandVerifier` (Path B) or the Rarimo `ZuitzPassExecutor` (Path A),
-///      since both implement `INullifierBanControl`.
+/// @dev The gate/registry must point its `governance` to this contract
+///      (setGovernance(address(this))). Works with any `INullifierBanControl` implementer —
+///      `ZuitzPassExecutor`, `WorldIDGate`, or `ClaimsRegistry`.
 contract ZuitzerlandGovernance is Ownable {
     INullifierBanControl public immutable verifier;
 

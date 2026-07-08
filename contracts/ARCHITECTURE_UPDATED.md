@@ -227,8 +227,8 @@ Phase-1 demo has a real external user.
 | `src/WorldIDGate.sol` | Issuer #2 (World ID). Keep; add claim issuance |
 | `src/ZuitzerlandGovernance.sol` + `INullifierBanControl` | Governance; re-point at ClaimsRegistry |
 | `src/ClaimsRegistry.sol`, `src/StatementRegistry.sol`, `src/issuers/*` | **Phase 1 — to build** |
-| `membership_proof/` (archived Noir circuit) | Dormant until Phase 3 (claims-SMT proof + per-app nullifier) |
-| `ZuitzerlandVerifier`, provider adapters, `NoirVerifierWrapper` | Archive — superseded by this design |
+| `eligibility_proof/`, `issuance_proof/` (Noir) | Phase-3 circuits — generalized from the original membership circuit (since removed) |
+| ~~Path B (`ZuitzerlandVerifier`, adapters, `NoirVerifierWrapper`)~~ | Removed — superseded by this design |
 | `ARCHITECTURE.md` | §1–8 historical (Path B); §9 superseded by this file |
 
 ---

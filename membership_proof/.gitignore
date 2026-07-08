@@ -1,2 +1,0 @@
-# Compressed build artifact (the uncompressed target/ files are tracked)
-target/*.gz
