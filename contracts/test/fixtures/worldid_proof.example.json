@@ -1,0 +1,11 @@
+{
+  "_comment": "Template for a World ID SIMULATOR proof (no orb/passport needed). Copy to worldid_proof.json, fill from the IDKit/simulator response, then run: PROOF_FIXTURE=test/fixtures/worldid_proof.json FORK=true forge test --match-test test_RealProof_Replay -vvv. appId+action MUST match what you generated the proof with; signal MUST be the same address you passed to IDKit.",
+
+  "appId": "app_staging_0000000000000000000000000000",
+  "action": "zuitzpass-access",
+  "signal": "0x000000000000000000000000000000000000BEEF",
+
+  "root": "0x0",
+  "nullifierHash": "0x0",
+  "proof": ["0x0", "0x0", "0x0", "0x0", "0x0", "0x0", "0x0", "0x0"]
+}

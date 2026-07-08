@@ -1,0 +1,20 @@
+{
+  "_comment": "Template for a captured real RariMe Query proof. Copy to rarimo_proof.json and fill with REAL values, then run: PROOF_FIXTURE=test/fixtures/rarimo_proof.json FORK=true forge test --match-test test_RealProof_Replay -vvv. The policy fields MUST match what the proof was generated with (see docs/RARIMO_PATH.md).",
+
+  "eventId": "0x5a55495450415353",
+  "identityCounterUpperbound": 1,
+  "timestampUpperbound": 1,
+  "_timestampUpperbound_note": "MUST be the exact timestamp_upperbound the proof was generated with (public signal 15). Do NOT leave 0 — 0 means 'now' and will not match the proof.",
+  "requireUniqueness": true,
+  "requireNotExpired": false,
+  "birthDateUpperbound": 0,
+
+  "registrationRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "currentDate": 0,
+  "nullifier": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "eventData": "0x0000000000000000000000000000000000000000000000000000000000000000",
+
+  "proofA": ["0x0", "0x0"],
+  "proofB": ["0x0", "0x0", "0x0", "0x0"],
+  "proofC": ["0x0", "0x0"]
+}

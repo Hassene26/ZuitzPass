@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ZuitzPass — Statements Layer Demo</title>
+  <style>
+    :root {
+      --bg: #0f1220; --panel: #191d31; --panel2: #212745; --line: #2c3355;
+      --ink: #e8ebff; --muted: #9aa2c8; --accent: #6c8cff; --ok: #35d07f; --bad: #ff6b6b;
+      --chip: #2a315a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg); color: var(--ink); padding: 28px;
+    }
+    h1 { font-size: 20px; margin: 0 0 2px; }
+    h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 12px; }
+    .sub { color: var(--muted); margin: 0 0 22px; }
+    .wrap { max-width: 920px; margin: 0 auto; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+    .panel.full { grid-column: 1 / -1; }
+    .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px dashed var(--line); }
+    .row:last-child { border-bottom: 0; }
+    .k { color: var(--muted); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+    .chip { background: var(--chip); border-radius: 999px; padding: 2px 10px; font-size: 12px; }
+    button {
+      background: var(--accent); color: #fff; border: 0; border-radius: 10px;
+      padding: 9px 14px; font-weight: 600; cursor: pointer; font-size: 13px;
+    }
+    button.ghost { background: var(--panel2); border: 1px solid var(--line); color: var(--ink); }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    .steps button { width: 100%; margin-bottom: 8px; text-align: left; }
+    .badge { font-weight: 700; padding: 3px 12px; border-radius: 999px; }
+    .badge.ok { background: rgba(53,208,127,.16); color: var(--ok); }
+    .badge.bad { background: rgba(255,107,107,.16); color: var(--bad); }
+    .claims .row .v.yes { color: var(--ok); font-weight: 700; }
+    .claims .row .v.no { color: var(--muted); }
+    #log { background: #0b0e1a; border: 1px solid var(--line); border-radius: 10px; padding: 12px;
+      height: 150px; overflow: auto; font-family: ui-monospace, monospace; font-size: 12px; white-space: pre-wrap; }
+    .log-ok { color: var(--ok); } .log-bad { color: var(--bad); } .log-dim { color: var(--muted); }
+    .hint { color: var(--muted); font-size: 12px; margin-top: 8px; }
+    .flex { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>ZuitzPass — zk Statements Layer</h1>
+    <p class="sub">Phase-1 demo · evidence → claims → statement → consume · zero-ZK issuers on a local anvil</p>
+
+    <div class="grid">
+      <div class="panel">
+        <h2>Actors &amp; contracts</h2>
+        <div class="row"><span class="k">Alice (wallet)</span><span class="mono" id="aliceAddr">—</span></div>
+        <div class="row"><span class="k">Alice subject</span><span class="mono" id="subject">—</span></div>
+        <div class="row"><span class="k">Alice balance</span><span class="mono" id="aliceBal">—</span></div>
+        <div class="row"><span class="k">Pool balance</span><span class="mono" id="poolBal">—</span></div>
+        <div class="row"><span class="k">Statement</span><span class="chip">attended AND holds NFT</span></div>
+      </div>
+
+      <div class="panel claims">
+        <h2>Alice's claims</h2>
+        <div class="row"><span class="k">ZUITZ_MAY25_ATTENDEE</span><span class="v no" id="cAttend">absent</span></div>
+        <div class="row"><span class="k">HOLDS_ZUITZ_NFT</span><span class="v no" id="cNft">absent</span></div>
+        <div class="row" style="margin-top:6px">
+          <span class="k">Eligible for subsidy?</span>
+          <span class="badge bad" id="eligible">NO</span>
+        </div>
+      </div>
+
+      <div class="panel steps">
+        <h2>Acquire evidence (issuers)</h2>
+        <button id="btnMint">1 · Mint membership NFT to Alice <span class="log-dim">(organizer)</span></button>
+        <button id="btnOnchain">2 · Issue HOLDS_NFT claim from on-chain balance <span class="log-dim">(anyone)</span></button>
+        <button id="btnAttest">3 · Organizer attests ATTENDEE <span class="log-dim">(signer)</span></button>
+        <p class="hint">Each issuer writes a typed claim to Alice's subject in the ClaimsRegistry.</p>
+      </div>
+
+      <div class="panel">
+        <h2>Use the statement (consumer)</h2>
+        <div class="flex">
+          <button id="btnClaim">Claim subsidy (0.1 ETH)</button>
+          <button class="ghost" id="btnRefresh">Refresh state</button>
+        </div>
+        <div class="row" style="margin-top:12px"><span class="k">Claimed this epoch?</span><span class="mono" id="claimed">—</span></div>
+        <p class="hint">Pool calls <span class="mono">consume(subject, statementId, epoch)</span>. A second claim in the same epoch reverts <span class="mono">AlreadyConsumed</span>.</p>
+      </div>
+
+      <div class="panel full">
+        <h2>Log</h2>
+        <div id="log"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

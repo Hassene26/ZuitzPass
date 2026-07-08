@@ -2,23 +2,25 @@
 pragma solidity ^0.8.20;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {ZuitzerlandVerifier} from "./ZuitzerlandVerifier.sol";
+import {INullifierBanControl} from "./interfaces/INullifierBanControl.sol";
 
 /// @title ZuitzerlandGovernance
 /// @notice PoC ban mechanism. A single admin (owner) can ban / unban nullifiers,
-///         which flips the flag in the verifier. Banning a nullifier prevents the
+///         which flips the flag in the gate. Banning a nullifier prevents the
 ///         corresponding member from gaining access on future proof submissions.
 ///
-/// @dev The verifier must point its `governance` to this contract
-///      (verifier.setGovernance(address(this))).
+/// @dev The gate must point its `governance` to this contract
+///      (gate.setGovernance(address(this))). Works with either the generic
+///      `ZuitzerlandVerifier` (Path B) or the Rarimo `ZuitzPassExecutor` (Path A),
+///      since both implement `INullifierBanControl`.
 contract ZuitzerlandGovernance is Ownable {
-    ZuitzerlandVerifier public immutable verifier;
+    INullifierBanControl public immutable verifier;
 
     event NullifierBanned(bytes32 nullifier, address bannedBy, uint256 timestamp);
     event NullifierUnbanned(bytes32 nullifier, address unbannedBy, uint256 timestamp);
 
     constructor(address _verifier) Ownable(msg.sender) {
-        verifier = ZuitzerlandVerifier(_verifier);
+        verifier = INullifierBanControl(_verifier);
     }
 
     /// @notice Ban a nullifier. Only the admin (owner) may call.
