@@ -1,0 +1,16 @@
+{
+  "name": "zuitzpass-demo-backend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch --env-file=.env server.js",
+    "start": "node --env-file=.env server.js"
+  },
+  "dependencies": {
+    "@worldcoin/idkit-server": "^1.1.1",
+    "circomlibjs": "^0.1.7",
+    "cors": "^2.8.5",
+    "ethers": "^6.13.4",
+    "express": "^4.21.2"
+  }
+}
