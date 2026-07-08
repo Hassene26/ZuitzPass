@@ -1,0 +1,28 @@
+# --- secrets (never commit) ---
+**/.env
+
+# --- node deps / builds ---
+**/node_modules
+contracts/frontend-idkit/dist
+demo-app/frontend/dist
+
+# --- foundry ---
+contracts/out
+contracts/cache
+
+# --- generated fixtures / artifacts ---
+contracts/frontend/addresses.json
+contracts/eligibility_prover.toml
+contracts/eligibility_live_prover.toml
+contracts/issuance_prover.toml
+contracts/smt_fixture.json
+contracts/test/fixtures/worldid_proof.json
+
+# --- circuit build output ---
+eligibility_proof/target
+issuance_proof/target
+membership_proof/target
+*.gz
+
+# --- editor / harness ---
+.claude/
