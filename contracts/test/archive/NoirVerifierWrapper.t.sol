@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {Test} from "forge-std/Test.sol";
-import {NoirVerifierWrapper} from "../src/NoirVerifierWrapper.sol";
+import {NoirVerifierWrapper} from "../../src/archive/NoirVerifierWrapper.sol";
 import {MockHonkVerifier} from "./mocks/Mocks.sol";
 
 contract NoirVerifierWrapperTest is Test {

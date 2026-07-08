@@ -2,11 +2,11 @@
 pragma solidity ^0.8.20;
 
 import {Test} from "forge-std/Test.sol";
-import {ZuitzerlandVerifier} from "../src/ZuitzerlandVerifier.sol";
-import {ZuitzerlandGovernance} from "../src/ZuitzerlandGovernance.sol";
-import {RarimoAdapter} from "../src/adapters/RarimoAdapter.sol";
-import {ZkPassportAdapter} from "../src/adapters/ZkPassportAdapter.sol";
-import {ProofSubmission} from "../src/interfaces/IZuitzerland.sol";
+import {ZuitzerlandVerifier} from "../../src/archive/ZuitzerlandVerifier.sol";
+import {ZuitzerlandGovernance} from "../../src/ZuitzerlandGovernance.sol";
+import {RarimoAdapter} from "../../src/archive/adapters/RarimoAdapter.sol";
+import {ZkPassportAdapter} from "../../src/archive/adapters/ZkPassportAdapter.sol";
+import {ProofSubmission} from "../../src/archive/interfaces/IZuitzerland.sol";
 import {MockEvidenceRegistry, MockNoirVerifier} from "./mocks/Mocks.sol";
 
 contract ZuitzerlandVerifierTest is Test {

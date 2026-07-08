@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {IEvidenceRegistry, INoirVerifier} from "../../src/interfaces/IZuitzerland.sol";
+import {IEvidenceRegistry, INoirVerifier} from "../../../src/archive/interfaces/IZuitzerland.sol";
 
 /// @notice Mock ERC-7812 registry: lets tests set a root's registration timestamp.
 contract MockEvidenceRegistry is IEvidenceRegistry {

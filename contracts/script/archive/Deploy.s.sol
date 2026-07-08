@@ -2,11 +2,11 @@
 pragma solidity ^0.8.20;
 
 import {Script, console2} from "forge-std/Script.sol";
-import {ZuitzerlandVerifier} from "../src/ZuitzerlandVerifier.sol";
-import {ZuitzerlandGovernance} from "../src/ZuitzerlandGovernance.sol";
-import {NoirVerifierWrapper} from "../src/NoirVerifierWrapper.sol";
-import {RarimoAdapter} from "../src/adapters/RarimoAdapter.sol";
-import {ZkPassportAdapter} from "../src/adapters/ZkPassportAdapter.sol";
+import {ZuitzerlandVerifier} from "../../src/archive/ZuitzerlandVerifier.sol";
+import {ZuitzerlandGovernance} from "../../src/ZuitzerlandGovernance.sol";
+import {NoirVerifierWrapper} from "../../src/archive/NoirVerifierWrapper.sol";
+import {RarimoAdapter} from "../../src/archive/adapters/RarimoAdapter.sol";
+import {ZkPassportAdapter} from "../../src/archive/adapters/ZkPassportAdapter.sol";
 
 /// @title Deploy
 /// @notice Deploys + wires the full Zuitzerland stack in the order from
