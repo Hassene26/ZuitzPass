@@ -17,9 +17,18 @@ function wasmMime() {
 
 export default defineConfig({
   plugins: [react(), nodePolyfills(), wasmMime()],
-  optimizeDeps: { exclude: ["@worldcoin/idkit-core"] },
+  // bb.js + noir_js ship WASM and use top-level await / workers — don't pre-bundle them (so their
+  // .wasm assets resolve) and target esnext.
+  optimizeDeps: {
+    exclude: ["@worldcoin/idkit-core", "@aztec/bb.js", "@noir-lang/noir_js", "@noir-lang/noirc_abi", "@noir-lang/acvm_js"],
+    esbuildOptions: { target: "esnext" },
+  },
+  build: { target: "esnext" },
+  worker: { format: "es" },
   server: {
     port: 5175,
     proxy: { "/api": "http://localhost:8787" }, // backend
+    // NOTE: no COOP/COEP headers — they'd break the IDKit World-ID iframe. bb.js falls back to
+    // single-threaded proving without SharedArrayBuffer (slower but works; ~27s for this circuit).
   },
 });
