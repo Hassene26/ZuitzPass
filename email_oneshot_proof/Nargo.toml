@@ -1,0 +1,11 @@
+[package]
+name = "email_oneshot_proof"
+type = "bin"
+authors = ["Zuitzerland"]
+
+# ⚠️ TOOLCHAIN: builds with nargo 1.0.0-beta.5 + matching bb (zkemail.nr v2.0.0's pinned toolchain).
+# Same constraints as email_proof/ — poseidon pinned to v0.1.0 (hash-identical to v0.3.0), comments
+# must be pure ASCII. See docs/EMAIL_EVIDENCE_WALKTHROUGH.md.
+[dependencies]
+poseidon = { tag = "v0.1.0", git = "https://github.com/noir-lang/poseidon" }
+zkemail = { tag = "v2.0.0", git = "https://github.com/zkemail/zkemail.nr", directory = "lib" }
