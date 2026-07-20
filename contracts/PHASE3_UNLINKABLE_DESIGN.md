@@ -5,6 +5,16 @@ architecture discussion. Extends `ARCHITECTURE_UPDATED.md` §4 (which named the 
 concrete key model, the two circuits, and the on-chain changes. This is the target the PoC now
 aims at — it turns the pseudonymous Phase-1 system into a strongly-unlinkable one._
 
+> **Scope note (2026-07-14): this spec describes the *persistent* path.** It assumes every fact is
+> minted into the claims SMT (Part A → redeem → leaf) and later spent via Circuit A. A later
+> discussion established that persistence is a **per-fact choice**, not mandatory: unlinkability and
+> privacy come from proving in ZK + emitting a per-app nullifier, *not* from storing the claim. Many
+> facts — emails especially — default to **one-shot presentation** (verify a ZK proof + consume a
+> per-app nullifier, nothing stored), skipping the credential tree and redeem entirely; a one-shot
+> proof and a persistent-claim proof interoperate in one statement via the shared nullifier. This
+> spec remains correct for facts that *should* persist (expensive personhood, perishable evidence).
+> See [`docs/AGGREGATED_PROOFS_DESIGN.md` §0.5](../docs/AGGREGATED_PROOFS_DESIGN.md).
+
 ---
 
 ## 0. Decisions this spec encodes

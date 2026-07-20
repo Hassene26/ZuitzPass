@@ -1,5 +1,9 @@
 # ZuitzPass — project overview
 
+> 👋 **New here? Start with [`READ_ME_FIRST.md`](READ_ME_FIRST.md)** — the front door: the system in
+> one sentence, the three ways to hold a proof, the composition ladder, and a 5-minute reading path
+> into the rest of the docs. Come back here for the full architecture reference.
+
 _A neutral, provider-agnostic, on-chain **zk statements layer**. This one document is meant to be
 enough to understand the whole project without having built it. For deeper detail see
 [`contracts/ARCHITECTURE_UPDATED.md`](contracts/ARCHITECTURE_UPDATED.md) (the canonical design),
@@ -95,14 +99,99 @@ graph TD
     GOV --> RI
 ```
 
-Read it as three hops: **(a)** a provider adapter verifies a human and drops a blinded credential
-into that provider's `VerifiedHumansTree`; **(b)** the user privately redeems it (Circuit B) and
-`RedeemIssuer` writes an opaque claim leaf into the `ClaimsSMTRegistry`; **(c)** to use an app the
-user proves eligibility over those claims (Circuit A) and the `EligibilityGate` verifies it and
-burns a per-app nullifier. The `StatementRegistry` supplies the rule; governance configures.
+Reading the diagram literally, node by node:
 
-The **Phase-1 (pseudonymous)** path is the same shape without the circuits: the provider gate calls
-`ClaimsRegistry.issue(subject, type)` directly, and the app calls `StatementRegistry.check/consume`.
+- **`Provider` (top).** The outside source of a fact — World ID (or Rarimo, zkPassport…) attests
+  "this is a unique human." ZuitzPass never replaces it; it consumes its proof.
+- **`GATE` — provider adapter.** A thin contract that knows how to verify *that one* provider's
+  proof (World ID calls the World ID Router; Rarimo runs a Groth16 verifier). It's the only
+  per-provider piece. On a valid proof it does one new thing: `insertCredential(C)`.
+- **`VHT` — VerifiedHumansTree** *(arrow "Part A")*. The adapter deposits a **blinded credential**
+  `C = Poseidon2(s, r)` — a commitment to the user's secret identity — into this per-provider tree.
+  `C` leaks nothing about the identity. This tree is the **anonymity set**: the crowd the user later
+  hides in. This step is *public* (the provider's nullifier is visible here) but not linked to `idc`.
+- **`CB` — Circuit B → `RI` — RedeemIssuer** *(arrows "membership witness" → "proof" →
+  "addClaimLeaf")*. Later, in a **separate transaction** (so timing can't link the two), the user
+  proves in Circuit B that they own *some* `C` in `VHT` — **without revealing which** — and that the
+  leaf they're writing is for their own identity. `RedeemIssuer` verifies that proof and calls
+  `addClaimLeaf(Poseidon2(idc, claimType))`. This step is *private*: the claim lands, but nothing
+  on-chain links the provider nullifier to `idc`.
+- **`CSMT` — ClaimsSMTRegistry.** The one canonical tree of everyone's claims, keyed by
+  `Poseidon2(idc, claimType)` — opaque leaves. It keeps a short **root history** so a proof made a
+  few minutes ago still verifies.
+- **`SR` — StatementRegistry.** Where an app's rule lives, e.g. `CANNES = allOf[UNIQUE_HUMAN]`.
+  Governance registers it once; it's just data.
+- **`CA` — Circuit A → `EG` — EligibilityGate** *(arrows "Merkle paths" → "proof + per-app
+  nullifier" → "consume")*. To use an app, the user's client fetches their claim's Merkle path from
+  `CSMT` and proves in Circuit A: *"under the current claims root, I hold valid claims of the types
+  this statement requires, and here is my per-app nullifier `Poseidon(s, appId, contextId)`."* The
+  app calls `EligibilityGate.consume(statementId, …, proof)`; the gate checks the root is fresh, the
+  proof's claim types equal the statement's `allOf`, the app scope matches, and the nullifier is
+  unused — then marks it used.
+- **`APP`.** Gets back only *"eligible, nullifier X."* Never the identity, credential, or wallet. A
+  replay reverts `AlreadyConsumed`; the same person at another app produces a different nullifier.
+- **`GOV`.** The multisig/EOA that registers claim types, statements, and providers — config, not
+  per-user.
+
+**The Phase-1 (pseudonymous) shortcut** is the same two layers *without any circuits*: the provider
+adapter calls `ClaimsRegistry.issue(subject, type)` directly (subject = `keccak256(providerId,
+nullifier)`), and the app calls `StatementRegistry.check` / `consume`. Cheaper, but the app sees a
+stable subject — pseudonymous, not unlinkable.
+
+### 4.1 The demo app, call by call (runtime sequence)
+
+The diagram above is the *static* wiring; here is what the full-stack demo (`demo-app/`) actually
+executes. The **backend never signs** — it only reads chain state, proves the circuits server-side
+(`nargo` + `bb`), and returns transaction calldata; the browser signs every write with **MetaMask**.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as User (browser)
+    participant FE as Frontend
+    participant BE as Backend (keyless)
+    participant WID as World ID (IDKit)
+    participant MM as MetaMask
+    participant CH as Chain
+
+    Note over U,CH: Bob — create event
+    U->>FE: Create event
+    FE->>BE: POST /bob/create-event
+    BE-->>FE: tx = StatementRegistry.registerStatement(allOf=[UNIQUE_HUMAN])
+    FE->>MM: sign → CH: registerStatement()
+
+    Note over U,CH: Alice — identity + humanity + claim
+    U->>FE: Register
+    FE->>BE: POST /alice/register
+    BE-->>FE: idc, C = Poseidon2(s,r)
+    U->>FE: Connect World ID
+    FE->>BE: POST /rp-signature
+    BE-->>FE: rp_context
+    FE->>WID: IDKit widget → user approves in simulator
+    WID-->>FE: verified human
+    FE->>BE: POST /alice/insert-credential-tx
+    BE-->>FE: tx = VerifiedHumansTree.insertCredential(C)
+    FE->>MM: sign → CH: insertCredential(C)  (Part A)
+    FE->>BE: POST /alice/redeem
+    BE->>CH: getProof(C)  (read)
+    BE->>BE: prove Circuit B (nargo + bb)
+    BE-->>FE: tx = RedeemIssuer.redeem(proof, pub)
+    FE->>MM: sign → CH: redeem() → addClaimLeaf(Poseidon2(idc,type))  (Part B)
+
+    Note over U,CH: Alice — join event
+    U->>FE: Join
+    FE->>BE: POST /alice/join {statementId, appAddress}
+    BE->>CH: appScope(), getProof(leafKey)  (reads)
+    BE->>BE: prove Circuit A (nargo + bb)
+    BE-->>FE: tx = EligibilityGate.consume(proof, pub), nullifier
+    FE->>MM: sign → CH: consume() → verify + burn nullifier
+```
+
+Notes: the two ZK proofs are generated **server-side** during `redeem` (Circuit B) and `join`
+(Circuit A). The World ID step doesn't touch the chain in this demo — IDKit success gates the
+credential insert (wiring `WorldIDGate.verify → insertCredential` on-chain is a follow-up).
+`insertCredential` / `registerStatement` require the deployer account (tree writer / statement
+owner); `redeem` / `consume` are permissionless.
 
 ---
 
