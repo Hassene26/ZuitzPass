@@ -8,6 +8,8 @@ import {ClaimsSMTRegistry} from "../src/phase3/ClaimsSMTRegistry.sol";
 import {VerifiedHumansTree} from "../src/phase3/VerifiedHumansTree.sol";
 import {IHonkVerifier} from "../src/phase3/interfaces/IHonkVerifier.sol";
 
+import {PoseidonT4} from "poseidon-solidity/PoseidonT4.sol";
+
 import {MockEligibilityVerifier} from "./mocks/EligibilityMocks.sol";
 
 contract RedeemIssuerTest is Test {
@@ -106,6 +108,92 @@ contract RedeemIssuerTest is Test {
         uint64 past = uint64(block.timestamp - 1);
         vm.expectRevert(abi.encodeWithSelector(RedeemIssuer.BadExpiry.selector, past));
         redeemer.redeem(PROVIDER, past, "", p);
+    }
+
+    function _leafValue(uint64 expiresAt) internal pure returns (bytes32) {
+        return bytes32(PoseidonT4.hash([ISSUER, uint256(expiresAt), uint256(0)]));
+    }
+
+    // -----------------------------------------------------------------------
+    // Renewal (§4.1 revocation model)
+    // -----------------------------------------------------------------------
+    function test_Renew_RefreshesExpiredClaim() public {
+        uint64 exp1 = _exp();
+        redeemer.redeem(PROVIDER, exp1, "", _pub(credRoot, claimType, LEAF_KEY, REDEEM_NULL));
+
+        // Claim lapses; the provider's tree has meanwhile advanced (a new epoch/root).
+        vm.warp(block.timestamp + 31 days);
+        vht.insertCredential(keccak256("credential-other"));
+        bytes32 freshRoot = vht.getRoot();
+
+        uint64 exp2 = uint64(block.timestamp + 30 days);
+        redeemer.renew(PROVIDER, exp2, "", _pub(freshRoot, claimType, LEAF_KEY, REDEEM_NULL));
+
+        assertEq(claimsSmt.getProof(LEAF_KEY).value, _leafValue(exp2), "leaf value refreshed");
+        assertEq(redeemer.redeemedLeafKey(REDEEM_NULL), LEAF_KEY, "binding retained");
+    }
+
+    function test_Renew_WithoutPriorRedeem_Reverts() public {
+        vm.expectRevert(abi.encodeWithSelector(RedeemIssuer.NotRedeemed.selector, REDEEM_NULL));
+        redeemer.renew(PROVIDER, _exp(), "", _pub(credRoot, claimType, LEAF_KEY, REDEEM_NULL));
+    }
+
+    function test_Renew_WrongLeafKey_Reverts() public {
+        redeemer.redeem(PROVIDER, _exp(), "", _pub(credRoot, claimType, LEAF_KEY, REDEEM_NULL));
+        bytes32 other = keccak256("other-leaf");
+        vm.expectRevert(abi.encodeWithSelector(RedeemIssuer.LeafKeyMismatch.selector, other, LEAF_KEY));
+        redeemer.renew(PROVIDER, _exp(), "", _pub(credRoot, claimType, other, REDEEM_NULL));
+    }
+
+    function test_Renew_StaleCredRoot_Reverts() public {
+        // Revocation: the provider rotates its tree; a proof against the old root can't renew.
+        redeemer.redeem(PROVIDER, _exp(), "", _pub(credRoot, claimType, LEAF_KEY, REDEEM_NULL));
+        vm.warp(block.timestamp + 2 hours); // past rootValidity — old root expires
+        vm.expectRevert(abi.encodeWithSelector(RedeemIssuer.StaleCredRoot.selector, credRoot));
+        redeemer.renew(PROVIDER, _exp(), "", _pub(credRoot, claimType, LEAF_KEY, REDEEM_NULL));
+    }
+
+    function test_Renew_DoesNotConsumeNewNullifierSpace() public {
+        redeemer.redeem(PROVIDER, _exp(), "", _pub(credRoot, claimType, LEAF_KEY, REDEEM_NULL));
+        redeemer.renew(PROVIDER, uint64(block.timestamp + 60 days), "", _pub(credRoot, claimType, LEAF_KEY, REDEEM_NULL));
+        // Renewal reuses the same nullifier binding — a second renewal still works.
+        redeemer.renew(PROVIDER, uint64(block.timestamp + 90 days), "", _pub(credRoot, claimType, LEAF_KEY, REDEEM_NULL));
+        assertEq(claimsSmt.getProof(LEAF_KEY).value, _leafValue(uint64(block.timestamp + 90 days)), "second renewal applied");
+    }
+
+    // -----------------------------------------------------------------------
+    // Per-provider maxValidity override (§B.3)
+    // -----------------------------------------------------------------------
+    function test_ProviderMaxValidity_Override() public {
+        // Global cap is 180 days: a 300-day claim reverts...
+        uint64 longExp = uint64(block.timestamp + 300 days);
+        bytes32[] memory p = _pub(credRoot, claimType, LEAF_KEY, REDEEM_NULL);
+        vm.expectRevert(abi.encodeWithSelector(RedeemIssuer.BadExpiry.selector, longExp));
+        redeemer.redeem(PROVIDER, longExp, "", p);
+
+        // ...until the provider gets a durable-fact override.
+        redeemer.setProviderMaxValidity(PROVIDER, 365 days);
+        redeemer.redeem(PROVIDER, longExp, "", p);
+        assertEq(claimsSmt.getProof(LEAF_KEY).value, _leafValue(longExp), "long-lived claim written");
+    }
+
+    function test_ProviderMaxValidity_OverrideAppliesToRenew() public {
+        redeemer.redeem(PROVIDER, _exp(), "", _pub(credRoot, claimType, LEAF_KEY, REDEEM_NULL));
+        uint64 longExp = uint64(block.timestamp + 300 days);
+        vm.expectRevert(abi.encodeWithSelector(RedeemIssuer.BadExpiry.selector, longExp));
+        redeemer.renew(PROVIDER, longExp, "", _pub(credRoot, claimType, LEAF_KEY, REDEEM_NULL));
+
+        redeemer.setProviderMaxValidity(PROVIDER, 365 days);
+        redeemer.renew(PROVIDER, longExp, "", _pub(credRoot, claimType, LEAF_KEY, REDEEM_NULL));
+        assertEq(claimsSmt.getProof(LEAF_KEY).value, _leafValue(longExp), "renewed past global cap");
+    }
+
+    function test_ProviderMaxValidity_ZeroFallsBackToGlobal() public {
+        redeemer.setProviderMaxValidity(PROVIDER, 365 days);
+        redeemer.setProviderMaxValidity(PROVIDER, 0);
+        uint64 longExp = uint64(block.timestamp + 300 days);
+        vm.expectRevert(abi.encodeWithSelector(RedeemIssuer.BadExpiry.selector, longExp));
+        redeemer.redeem(PROVIDER, longExp, "", _pub(credRoot, claimType, LEAF_KEY, REDEEM_NULL));
     }
 
     function test_Redeem_ProviderDisabled_Reverts() public {
