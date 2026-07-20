@@ -1,5 +1,11 @@
 # --- secrets (never commit) ---
 **/.env
+demo-app/backend/.env.dkimtest
+
+# --- generated DKIM test artifacts (regenerate via make-test-eml.mjs) ---
+demo-app/backend/sample-luma.eml
+demo-app/backend/*.eml
+demo-app/backend/dkimtest.json
 
 # --- node deps / builds ---
 **/node_modules
@@ -17,12 +23,22 @@ contracts/eligibility_live_prover.toml
 contracts/issuance_prover.toml
 contracts/smt_fixture.json
 contracts/test/fixtures/worldid_proof.json
+demo-app/frontend/public/*.eml
+demo-app/frontend/public/email_oneshot_proof.json
+demo-app/backend/evidence-testkeys.json
+demo-app/backend/dkimtest.json
 
 # --- circuit build output ---
 eligibility_proof/target
 issuance_proof/target
 membership_proof/target
 *.gz
+
+email_proof/target/
+email_oneshot_proof/target/
+email_proof/Prover.toml
+email_oneshot_proof/Prover.toml
+
 
 # --- editor / harness ---
 .claude/
