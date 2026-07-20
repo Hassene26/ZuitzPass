@@ -1,0 +1,16 @@
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=ethz.ch; h=Date:
+ Subject: To: From; q=dns/txt; s=test1; t=1784025293;
+ bh=Y0eR0h5zhz91zZPwGAvB264467xV5vltuc1juF2cNGw=;
+ b=Rw7B9D7/1pkWXomZWx+WvCR6VOD+SvSec/HYX3DHSqfQtmmYJLXWT2N0QcOcub8hk9p976Eey
+ YUNrmqNVg3Gf4bOScmnZ7vOFx8JCfVR3hyxivU7+VI4BFo70LAkT1TSkrsC4FDmSEuKFoN7t+fJ
+ 8Q2TCdtkxbs3vIuCkz+lXo2A3BRcNLU8Lm+PadeVbtS88S7cQ9w8e4EHHx6uDUa6wANU9XwTQB4
+ 3aUuBMUDgCULHq5LYSeh0dztVCPduLG7yBAKy7SEm7cIaaG93rMZKb0lCRd1kCeh4VdmbkL3C5i
+ B1hoVT4QM+9MrxnPmGlCnJwtAqAQ7febCyr8mdUjsY7g==
+From: ETH Zurich <registrar@ethz.ch>
+To: alice@example.com
+Subject: Enrollment confirmation — MSc Computer Science, ETH Zurich
+Date: Fri, 10 Jul 2026 02:00:00 +0000
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+
+This confirms your enrollment as a student at ETH Zurich.

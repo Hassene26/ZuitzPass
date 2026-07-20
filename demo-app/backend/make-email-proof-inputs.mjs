@@ -1,0 +1,124 @@
+// Generate email_proof/Prover.toml (Circuit C witness) from a DKIM-signed .eml — the
+// privacy-preserving replacement for uploading the email to the backend: this runs on the
+// USER's machine (here: locally, alongside the WSL nargo/bb workflow) and the raw email never
+// goes anywhere. Uses @zk-email/zkemail-nr, the input generator matching the zkemail.nr lib
+// the circuit imports.
+//
+//   node make-email-proof-inputs.mjs [eml_path] [token] [secret] [r]
+//     defaults: sample-luma.eml  evt_cannes2026  424242  111222333
+//     → writes ../../email_proof/Prover.toml
+//     → prints the expected public outputs' PREIMAGE facts (token/lengths) for sanity
+//
+// The circuit's public values are RETURN values (computed in-circuit), so nothing here
+// re-implements Poseidon/Pedersen — `nargo execute` prints the authoritative outputs
+// (dkim_key_hash, event_id, email_nullifier, cred_commitment) used to configure the contracts.
+
+import { readFileSync, writeFileSync, existsSync } from "fs";
+import { fileURLToPath } from "url";
+import { generateEmailVerifierInputs, generateEmailVerifierInputsFromDKIMResult } from "@zk-email/zkemail-nr";
+import forge from "node-forge";
+const { pki } = forge;
+import { DkimVerifier } from "@zk-email/helpers/dist/lib/mailauth/dkim-verifier.js";
+import { writeToStream } from "@zk-email/helpers/dist/lib/mailauth/tools.js";
+
+const MAX_HEADER_LENGTH = 1408; // must equal email_proof/src/main.nr
+const MAX_TOKEN_LENGTH = 32;
+
+const dir = fileURLToPath(new URL(".", import.meta.url));
+const emlPath = process.argv[2] || dir + "sample-luma.eml";
+const token = process.argv[3] || "evt_cannes2026";
+const secret = process.argv[4] || "424242"; // demo master secret (matches existing fixtures)
+const r = process.argv[5] || "111222333"; // FRESH blinding for this credential (≠ the World ID one)
+
+const eml = readFileSync(emlPath);
+
+// DKIM witness: canonicalized signed header bytes, RSA pubkey limbs, signature limbs.
+// Header-only circuit → skip all body inputs. If dkimtest.json exists (self-signed fixture from
+// make-test-eml.mjs), verify against that key instead of real DNS — same override the backend's
+// dkim.js uses; real emails go through the SDK's normal DNS path.
+async function dkimInputs() {
+  const opts = { maxHeadersLength: MAX_HEADER_LENGTH, ignoreBodyHashCheck: true };
+  const testKeyPath = dir + "dkimtest.json";
+  if (!existsSync(testKeyPath)) return generateEmailVerifierInputs(eml.toString(), opts);
+
+  const t = JSON.parse(readFileSync(testKeyPath, "utf8"));
+  // Mirror @zk-email/helpers verifyDKIMSignature, with the test key as the DNS answer.
+  const verifier = new DkimVerifier({
+    resolver: async (name, type) =>
+      type === "TXT" && name === `${t.selector}._domainkey.${t.domain}`
+        ? [[`v=DKIM1; k=rsa; p=${t.pubDerBase64}`]]
+        : [],
+  });
+  await writeToStream(verifier, eml.toString());
+  const res = verifier.results.find((d) => d.signingDomain === t.domain && d.status.result === "pass");
+  if (!res) throw new Error(`test-key DKIM verification failed for ${t.domain}`);
+  const pubKeyData = pki.publicKeyFromPem(res.publicKey.toString());
+  return generateEmailVerifierInputsFromDKIMResult(
+    {
+      signature: BigInt(`0x${Buffer.from(res.signature, "base64").toString("hex")}`),
+      headers: res.status.signedHeaders,
+      signingDomain: res.signingDomain,
+      publicKey: BigInt(pubKeyData.n.toString()),
+      modulusLength: res.modulusLength,
+    },
+    opts
+  );
+}
+const inputs = await dkimInputs();
+
+// --- locate the subject field + token inside the canonicalized signed header ---------------
+const headerBytes = inputs.header.storage.map(Number);
+const headerLen = Number(inputs.header.len);
+const ascii = Buffer.from(headerBytes.slice(0, headerLen)).toString("binary");
+
+// Relaxed canonicalization lowercases header names; fields are CRLF-delimited.
+const subjectStart = ascii.startsWith("subject:") ? 0 : ascii.indexOf("\r\nsubject:") + 2;
+if (subjectStart < 2 && !ascii.startsWith("subject:")) {
+  throw new Error("subject: not found in signed header — is it in the DKIM h= list?");
+}
+const subjectEnd = ascii.indexOf("\r\n", subjectStart); // end of the field (exclusive of CRLF)
+const subjectSeq = { index: subjectStart, length: (subjectEnd < 0 ? headerLen : subjectEnd) - subjectStart };
+
+const tokenIndex = ascii.indexOf(token, subjectStart + 8);
+if (tokenIndex < 0 || tokenIndex + token.length > subjectStart + subjectSeq.length) {
+  throw new Error(`token "${token}" not found inside the subject value`);
+}
+
+if (token.length > MAX_TOKEN_LENGTH) throw new Error(`token longer than ${MAX_TOKEN_LENGTH}`);
+const tokenBytes = Array.from(Buffer.from(token, "utf8"));
+while (tokenBytes.length < MAX_TOKEN_LENGTH) tokenBytes.push(0); // circuit enforces zero padding
+
+// --- emit Prover.toml ------------------------------------------------------------------------
+const arr = (a) => `[${a.map((v) => `"${v}"`).join(", ")}]`;
+const toml = `# Generated by demo-app/backend/make-email-proof-inputs.mjs — do not edit by hand.
+# Source: ${emlPath.split("/").pop()}   token: ${token}
+secret = "${secret}"
+r = "${r}"
+signature = ${arr(inputs.signature)}
+token = ${arr(tokenBytes)}
+token_length = "${token.length}"
+token_index = "${tokenIndex}"
+
+[header]
+storage = ${arr(inputs.header.storage)}
+len = "${inputs.header.len}"
+
+[pubkey]
+modulus = ${arr(inputs.pubkey.modulus)}
+redc = ${arr(inputs.pubkey.redc)}
+
+[subject_sequence]
+index = "${subjectSeq.index}"
+length = "${subjectSeq.length}"
+`;
+
+const out = fileURLToPath(new URL("../../email_proof/Prover.toml", import.meta.url));
+writeFileSync(out, toml);
+
+console.log(`wrote ${out}`);
+console.log(`  header: ${headerLen} bytes (max ${MAX_HEADER_LENGTH})`);
+console.log(`  subject_sequence: index=${subjectSeq.index} length=${subjectSeq.length}`);
+console.log(`  token "${token}" at index ${tokenIndex} (len ${token.length})`);
+console.log(`  secret=${secret} r=${r}  →  C = Poseidon2(secret, r) (circuit computes it)`);
+console.log("\nNext (WSL): cd email_proof && nargo execute  → public outputs =");
+console.log("  [kh0, kh1, event_id, email_nullifier, cred_commitment]");

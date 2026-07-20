@@ -15,12 +15,14 @@ export function claimLeafKeyHex(s) {
   return toHex32(derive.claimLeafKey(s, claimTypeField(CLAIM)));
 }
 
-// Circuit B — issuance/redeem.
-export async function buildIssuanceToml(s, r) {
-  const ct = claimTypeField(CLAIM);
+// Circuit B — issuance/redeem. Generalized over (blinding r, claim type, credential tree) so the
+// SAME circuit redeems a humanity credential OR an email-evidence credential onto the master
+// identity. `credTree` is a Contract; `claimTypeName` selects the claim being minted.
+export async function buildIssuanceTomlFor({ s, r, claimTypeName, credTree }) {
+  const ct = claimTypeField(claimTypeName);
   const C = toHex32(derive.commitment(s, r));
-  const p = await contracts.verifiedHumansTree.getProof(C);
-  if (!p.existence) throw new Error("credential not in VerifiedHumansTree — do Part A (insertCredential) first");
+  const p = await credTree.getProof(C);
+  if (!p.existence) throw new Error(`credential C not in the ${claimTypeName} tree — submit the evidence (Part A) first`);
 
   const toml =
     [
@@ -33,7 +35,12 @@ export async function buildIssuanceToml(s, r) {
       arr("siblings", p.siblings),
     ].join("\n") + "\n";
 
-  return { toml, credRoot: p.root };
+  return { toml, credRoot: p.root, claimType: ct };
+}
+
+// Humanity Circuit B (the original) — thin wrapper over the generalized builder.
+export async function buildIssuanceToml(s, r) {
+  return buildIssuanceTomlFor({ s, r, claimTypeName: CLAIM, credTree: contracts.verifiedHumansTree });
 }
 
 // Circuit A — eligibility. `appId` comes from the gate's appScope(app, statementId).

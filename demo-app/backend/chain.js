@@ -12,6 +12,17 @@ export const contracts = {
   redeemIssuer: c(ADDR.redeemIssuer, ABI.redeemIssuer),
   eligibilityGate: c(ADDR.eligibilityGate, ABI.eligibilityGate),
   statementRegistry: c(ADDR.statementRegistry, ABI.statementRegistry),
+  emailEvidenceVerifier: c(ADDR.emailEvidenceVerifier, ABI.emailEvidenceVerifier),
+  oneShotEmailGate: c(ADDR.oneShotEmailGate, ABI.oneShotEmailGate),
+  oneShotEmailVerifier: c(ADDR.oneShotEmailVerifier, ABI.oneShotEmailVerifier),
+  multiEventEmailGate: c(ADDR.multiEventEmailGate, ABI.multiEventEmailGate),
+  humanEventGate: c(ADDR.humanEventGate, ABI.humanEventGate),
+  // Phase-1 pseudonymous layer (Vouch spike)
+  attestorIssuer: c(ADDR.attestorIssuer, ABI.attestorIssuer),
+  claimsRegistry: c(ADDR.claimsRegistry, ABI.claimsRegistry),
 };
+
+// A per-source VerifiedHumansTree (evidence credential tree), built on demand from its address.
+export const credTreeAt = (addr) => c(addr, ABI.verifiedHumansTree);
 
 export { ADDR };

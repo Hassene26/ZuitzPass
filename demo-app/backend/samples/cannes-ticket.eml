@@ -1,0 +1,16 @@
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=lu.ma; h=Date:
+ Subject: To: From; q=dns/txt; s=test1; t=1784025293;
+ bh=gqOMjeNpK6qHPKvOgS8DCYS6KDmtC2osJ4vTnW0qiCE=;
+ b=VLqL8dh5wOKyBnJMHDUiAlAhRmpVangYQrHuOkWX4nW8yBrUM3+ZXDF+f1i21HAO1HlJEkhh9
+ yXA+II/Nb0xhmofTOFv1eRBSsxSImR01MoYmY6czwCD1mgYpvT0NY2aiAxRxkghdb8scdCkfTmz
+ BO5UAkiCT8KPHMt3/VD+nUtMZWDs6fQG4bM4UdfUZu+a74EmRqMNoDdl+N3CEiqLdax21CNhKMF
+ I9egPRImLhQK6948xRYzn7Sw3ggqj97lMg4QAW7s3UnFJm3yLh9GDlBNjtN8f7ida9Dr+4dbB96
+ wv/6S45KGWmXGv0C7S+3wlR6UfeWOcm6hKoQUo4H7NmA==
+From: Luma <tickets@lu.ma>
+To: alice@example.com
+Subject: Your ticket to Cannes 2026 is confirmed (evt_cannes2026)
+Date: Fri, 10 Jul 2026 02:00:00 +0000
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+
+Your registration for Cannes 2026 is confirmed. See you there!

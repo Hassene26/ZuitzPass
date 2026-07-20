@@ -1,0 +1,16 @@
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=estv.admin.ch;
+ h=Date: Subject: To: From; q=dns/txt; s=test1; t=1784025293;
+ bh=AY6bFVBMm2G9wwjqgSPoJWN+nrbaWH0usPb1+jkKZA4=;
+ b=kdDKCCl56ohe7uYISmGQKMrDU2EVlFEMN7Ob0MTv74FdAHSvMjfe9rHrDXOCYovK/f09OaSXL
+ 2G6PqAFsrloy1IZqdVrfF/9jPUjv/mUr+nCDm+c5Qblxg2xr7K4lrlq693HYggQlKq68XZh6pmd
+ MdQ0gr1UK3hnVogaAxGDTKErQViqzmmKPC/vTa261/zjId5X5vBu03JF5CGGlz57U7UkTUfQP+m
+ Scmu7/lfXxfAX1Sglmc4elHBvYRIg0VzJtm/Oz7wFKZga4lcHt2uPXCD4zQ2eixXW0DvaY1PAgv
+ UESiYjpBF6Iez2QM5DH++7bDy016mFIhKXBgm4RoQ9ng==
+From: ESTV <noreply@estv.admin.ch>
+To: alice@example.com
+Subject: Tax assessment 2025 — payment received
+Date: Fri, 10 Jul 2026 02:00:00 +0000
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+
+We confirm receipt of your 2025 tax payment.
